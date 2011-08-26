@@ -103,11 +103,12 @@ var Translator = {
 
     return obj;
   }
-}
+};
 
 
 var Redmine = {
   
+  ITEMS_BY_PAGE: 100,
   base_url: '',
   
   getReports: function (project_id) {
@@ -115,25 +116,25 @@ var Redmine = {
   },
 
   getProjects: function () {
-    
+
     Logger.log("Launching getProjects()");
-  
+
     HTTP.SetAuth(API_ACCESS_KEY);
-  
+
     var xml_content = HTTP.Get(REDMINE_URL + '/projects.xml');
     var xml = Xml.parse(xml_content.getContentText(), true);
-  
+
     var root_element = xml.getElement();
     var projects_data = Translator.xmlToJS(root_element);
-  
+
     var projects = projects_data.projects.childs;
-  
+
     if (!projects || projects.length == 0) {
       return "Something went wrong";
     }
-  
+
     var data = [];
-  
+
     for (var i in projects) {
       //Logger.log(projects[i].project.childs);
       var length = projects[i].project.childs.length;
@@ -143,9 +144,9 @@ var Redmine = {
       var description = projects[i].project.childs[3].description.text;
       var createdon = projects[i].project.childs[length - 2].created_on.text;
       var updatedon = projects[i].project.childs[length - 1].updated_on.text;
-  
+
       var obj = {};
-    
+
       obj["id"] = id;
       obj["projectName"] = name;
       obj["description"] = description;
@@ -154,18 +155,135 @@ var Redmine = {
       Logger.log(obj);
       data.push(obj);
     }
+
+    return data;
+  },
+
+  getProject: function (id) {
+
+    Logger.log("Launching getProject()"+id);
+
+    HTTP.SetAuth(API_ACCESS_KEY);
+
+    var xml_content = HTTP.Get(REDMINE_URL + '/projects/' + id + '.xml');
+    var xml = Xml.parse(xml_content.getContentText(), true);
+
+    var root_element = xml.getElement();
+    var project_data = Translator.xmlToJS(root_element);
+
+    var project = project_data.project.childs;
+
+    if (!project || project.length == 0) {
+      return "Something went wrong";
+    }
+
+    var data = [];
+ 
+    Logger.log(project[5].custom_fields.childs[9].custom_field.text);
+
+    //for (var i in project) {
+    //  Logger.log(project[i]);
+    //}
+      //Logger.log(projects[i].project.childs);
+    //  var length = projects[i].project.childs.length;
+    //  Logger.log(length);
+    //  var id = projects[i].project.childs[0].id.text;
+    //  var name = projects[i].project.childs[1].name.text;
+    //  var description = projects[i].project.childs[3].description.text;
+    //  var createdon = projects[i].project.childs[length - 2].created_on.text;
+    //  var updatedon = projects[i].project.childs[length - 1].updated_on.text;
+  
+    //  var obj = {};
+    
+    //  obj["id"] = id;
+    //  obj["projectName"] = name;
+    //  obj["description"] = description;
+    //  obj["createdOn"] = createdon;
+    //  obj["updatedOn"] = updatedon;
+    //  Logger.log(obj);
+    //  data.push(obj);
+    //}
   
     return data;
   },
   
-  issueUpdate: function (issue_id, start_date, due_date) {
+  getTimeEntries: function (project_id) {
+    Logger.log("Launching getTimeEntries("+project_id+")");
+
     HTTP.SetAuth(API_ACCESS_KEY);
-  
-    //TODO: Create structure
+
+    var xml_content = HTTP.Get(REDMINE_URL + '/projects/' + project_id +
+                               '/time_entries.xml');
+
+    var xml = Xml.parse(xml_content.getContentText(), true);
+
+    var time_entries_count = xml.time_entries.getAttribute('total_count').getValue();
+
+    var pages = (time_entries_count / Redmine.ITEMS_BY_PAGE) + 1;
+
+    var data = [];
+
+    for (var i = 1; i <= pages; i++) {
+
+      xml_content = HTTP.Get(REDMINE_URL + '/projects/' + project_id +
+                             '/time_entries.xml?limit='+ Redmine.ITEMS_BY_PAGE +
+                             '&page=' + i);
+
+      xml = Xml.parse(xml_content.getContentText(), true);
+
+      var root_element = xml.getElement();
+      var time_data = Translator.xmlToJS(root_element);
+      var time_entries = time_data.time_entries.childs;
+
+      if (!time_entries || time_entries.length == 0) {
+        return "Something went wrong";
+      }
+
+      for (var j in time_entries) {
+        data.push(time_entries[j].time_entry.childs);
+      }
+    }
+
+    return data;
+  },
+
+  issueUpdate: function (issue_id, start_date, due_date) {
+    //TODO: Create Issue class for easy handling.
+    HTTP.SetAuth(API_ACCESS_KEY);
+
+    //TODO: Create Issue to send.
     var ret = HTTP.Put(REDMINE_URL + '/issues/' + issue_id + '.xml');
-  
+
   }
+};
+
+// CMI related functions
+function costProjectByYear(project_id, year) {
+
+  var cost_table = {};
+  var total_amount = 0.0;
+
+  var data = Redmine.getTimeEntries(project_id);
+
+  for (var i in data) {
+
+    var spent_on = data[i][7].spent_on.text;
+    var te_year = spent_on.split('-')[0];
+
+    if (te_year == year) {
+      var cost = +(data[i][8].cost.text);
+      var role = data[i][9].role.text;
+
+      cost_table[role] += cost;
+      total_amount += cost;
+    }
+  }
+
+  return total_amount;
 }
+
+
+// Presentation functions
 
 // Returns true if the cell where cellData was read from is empty.
 // Arguments:
@@ -275,4 +393,14 @@ function populateProjectsSS() {
   var data = Redmine.getProjects();
   
   setRowsData(projectsSheet, data);
+}
+
+// Stub functions
+function getProject() {
+  var data = Redmine.getProject(203);
+}
+
+function getCostFor2011() {
+  var total_amount = costProjectByYear(189, '2011');
+  Logger.log("total_amount: " + total_amount);
 }
