@@ -74,59 +74,73 @@ var HTTP = {
 
 }
 
-    
+
 // Class Translator
 var Translator = {
-  
+
   // XML to JS Object.
   xmlToJS: function (element) {
-    
+
     //TODO: Refactor this to add an array when necessary, not always.
-    
+
     var obj = {};
-    
+
     var element_name = element.getName().getLocalName();
     var element_text = element.getText();
-  
-    // element!  
-    var text = (element_text);  
+
+    // element!
+    var text = (element_text);
     var name = (element_name);
-  
+
     obj[name] = {};
-  
+
     if (text.length > 0) {
       obj[name]["text"] = text;
     }
-  
+
     var attributes = element.getAttributes();
-  
+
     if (attributes.length > 0) {
       obj[name]["attributes"] = {};
       for(i = 0; i < attributes.length; i++) {
-        obj[name]["attributes"][attributes[i].getName().getLocalName()] = attributes[i].getValue();    
+        obj[name]["attributes"][attributes[i].getName().getLocalName()] = attributes[i].getValue();
       }
     }
-    
+
     if (typeof(obj[name]["childs"]) == "undefined") {
       obj[name]["childs"] = [];
     }
-    
+
     var childs = element.getElements();
- 
+
     for (var i in childs) {
       obj[name]["childs"].push(this.xmlToJS(childs[i]));
     }
 
     return obj;
+  },
+
+  searchTag : function (data, tag) {
+
+    var ret_value;
+
+    for (var i in data) {
+      if (data[i][tag]) {
+        ret_value = data[i][tag];
+        break;
+      }
+    }
+
+    return ret_value;
   }
 };
 
 
 var Redmine = {
-  
+
   ITEMS_BY_PAGE: 100,
   base_url: '',
-  
+
   getReports: function (project_id) {
     return "";
   },
@@ -283,15 +297,23 @@ function costProjectByYear(project_id, year) {
 
   for (var i in data) {
 
-    var spent_on = data[i][7].spent_on.text;
-    var te_year = spent_on.split('-')[0];
+    var spent_on = Translator.searchTag(data[i], 'spent_on');
+    var spent_on_text = spent_on.text;
+
+    var te_year = spent_on_text.split('-')[0];
 
     if (te_year == year) {
-      var cost = +(data[i][8].cost.text);
-      var role = data[i][9].role.text;
 
-      cost_table[role] += cost;
-      total_amount += cost;
+      var cost = Translator.searchTag(data[i], 'cost');
+      var role = Translator.searchTag(data[i], 'role');
+      var cost_value = cost.text;
+      var role_text = role.text;
+
+      if (!cost.text)
+        continue;
+
+      cost_table[role_text] += +(cost_value);
+      total_amount += +(cost_value);
     }
   }
 
