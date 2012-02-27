@@ -1,7 +1,7 @@
 /*
  * Connector to Redmine from Google Apps Scripts platform.
  *
- * Copyright (c) 2011 Emergya
+ * Copyright (c) 2011,2012 Emergya
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,33 +27,33 @@ var API_ACCESS_KEY = 'YOUR_API_ACCESS_KEY_HERE!';
 // This prototype is defined for HTTP Basic authentication and easy
 // management of HTTP Request
 var HTTP = {
-  
+
   default_method: "GET",
   base_url: "",
   authentication: false,
   username: "",
   password: "",
-  
+
   Request: function(url, method) {
 
     // Support for HTTP Basic Authentication.
     // if (this.authentication) {
     var credentials = Utilities.base64Encode(this.username + ":" + this.password);
-  
+
     var headers = {
       "Authorization" : credentials
     };
-  
+
     options = {
       "headers" : headers,
       "method" : method
     };
-    
+
     var content = UrlFetchApp.fetch(url, options);
-    
+
     return content;
   },
-  
+
   Get: function (url) {
     return this.Request(url, "GET");
   },
@@ -61,11 +61,11 @@ var HTTP = {
   Post: function (url) {
     return this.Request(url, "POST");
   },
-  
+
   Put: function (url) {
     return this.Request(url, "PUT");
   },
-  
+
   SetAuth: function (username, password) {
     this.username = username;
     this.password = password;
@@ -208,35 +208,12 @@ var Redmine = {
     }
 
     var data = [];
- 
+
     Logger.log(project[5].custom_fields.childs[9].custom_field.text);
 
-    //for (var i in project) {
-    //  Logger.log(project[i]);
-    //}
-      //Logger.log(projects[i].project.childs);
-    //  var length = projects[i].project.childs.length;
-    //  Logger.log(length);
-    //  var id = projects[i].project.childs[0].id.text;
-    //  var name = projects[i].project.childs[1].name.text;
-    //  var description = projects[i].project.childs[3].description.text;
-    //  var createdon = projects[i].project.childs[length - 2].created_on.text;
-    //  var updatedon = projects[i].project.childs[length - 1].updated_on.text;
-  
-    //  var obj = {};
-    
-    //  obj["id"] = id;
-    //  obj["projectName"] = name;
-    //  obj["description"] = description;
-    //  obj["createdOn"] = createdon;
-    //  obj["updatedOn"] = updatedon;
-    //  Logger.log(obj);
-    //  data.push(obj);
-    //}
-  
     return data;
   },
-  
+
   getTimeEntries: function (project_id) {
     Logger.log("Launching getTimeEntries("+project_id+")");
 
@@ -277,11 +254,54 @@ var Redmine = {
     return data;
   },
 
+  getIssuesByTracker: function (project_id, tracker_id) {
+    Logger.log("Launching getIssuesByTracker("+project_id+","+tracker_id+")");
+
+    HTTP.SetAuth(API_ACCESS_KEY);
+
+    var xml_content = HTTP.Get(REDMINE_URL + '/issues.xml?project_id=' + project_id +
+                               '&tracker_id='+ tracker_id);
+
+    var xml = Xml.parse(xml_content.getContentText(), true);
+
+    var issues_count = xml.issues.getAttribute('total_count').getValue();
+
+    var pages = (issues_count / Redmine.ITEMS_BY_PAGE) + 1;
+
+    var data = [];
+
+    for (var i = 1; i <= pages; i++) {
+
+      xml_content = HTTP.Get(REDMINE_URL + '/issues.xml?project_id=' + project_id +
+                             '&tracker_id='+ tracker_id +
+                             '&limit='+ Redmine.ITEMS_BY_PAGE + '&page=' + i);
+
+      xml = Xml.parse(xml_content.getContentText(), true);
+
+      var root_element = xml.getElement();
+      var issue_data = Translator.xmlToJS(root_element);
+
+      var issues = issue_data.issues.childs;
+      Logger.log(issues);
+
+      if (!issues || issues.length == 0) {
+        return [];
+      }
+
+      for (var j in issues) {
+        Logger.log(issues[j]);
+        data.push(issues[j].issue.childs);
+      }
+    }
+
+    return data;
+  },
+
   issueUpdate: function (issue_id, start_date, due_date) {
     //TODO: Create Issue class for easy handling.
     HTTP.SetAuth(API_ACCESS_KEY);
 
-    //TODO: Create Issue to send.
+    //TODO: Create Issue to send
     var ret = HTTP.Put(REDMINE_URL + '/issues/' + issue_id + '.xml');
 
   }
@@ -320,125 +340,32 @@ function costProjectByYear(project_id, year) {
   return total_amount;
 }
 
+function expensesProjectByYear(project_id, year) {
 
-// Presentation functions
+  var total_planned = 0.0;
+  var total_spent = 0.0;
 
-// Returns true if the cell where cellData was read from is empty.
-// Arguments:
-//   - cellData: string
-function isCellEmpty(cellData) {
-  return typeof(cellData) == "string" && cellData == "";
-}
+  var data = Redmine.getIssuesByTracker(project_id, '27');
 
-// Returns true if the character char is alphabetical, false otherwise.
-function isAlnum(char) {
-  return char >= 'A' && char <= 'Z' ||
-    char >= 'a' && char <= 'z' ||
-    isDigit(char);
-}
+  for (var i in data) {
 
-// Returns true if the character char is a digit, false otherwise.
-function isDigit(char) {
-  return char >= '0' && char <= '9';
-}
+    var start_date = Translator.searchTag(data[i], 'start_date');
+    var start_date_text = start_date.text;
 
-// Normalizes a string, by removing all alphanumeric characters and using mixed case
-// to separate words. The output will always start with a lower case letter.
-// This function is designed to produce JavaScript object property names.
-// Arguments:
-//   - header: string to normalize
-// Examples:
-//   "First Name" -> "firstName"
-//   "Market Cap (millions) -> "marketCapMillions
-//   "1 number at the beginning is ignored" -> "numberAtTheBeginningIsIgnored"
-function normalizeString(header) {
-  var key = "";
-  var upperCase = false;
-  for (var i = 0; i < header.length; ++i) {
-    var letter = header[i];
-    if (letter == " " && key.length > 0) {
-      upperCase = true;
-      continue;
-    }
-    if (!isAlnum(letter)) {
-      continue;
-    }
-    if (key.length == 0 && isDigit(letter)) {
-      continue; // first character must be a letter
-    }
-    if (upperCase) {
-      upperCase = false;
-      key += letter.toUpperCase();
-    } else {
-      key += letter.toLowerCase();
+    var te_year = start_date_text.split('-')[0];
+
+    if (te_year == year) {
+
+      var custom_fields = Translator.searchTag(data[i], 'custom_fields');
+
+      var initial = custom_fields.childs[0].custom_field.childs[0].value.text;
+      var planned = custom_fields.childs[1].custom_field.childs[0].value.text;
+      var spent = custom_fields.childs[2].custom_field.childs[0].value.text;
+
+      total_planned += +(planned);
+      total_spent += +(spent);
     }
   }
-  return key;
-}
 
-// Returns an Array of normalized Strings. 
-// Empty Strings are returned for all Strings that could not be successfully normalized.
-// Arguments:
-//   - headers: Array of Strings to normalize
-function normalizeStrings(headers) {
-  var keys = [];
-  for (var i = 0; i < headers.length; ++i) {
-    keys.push(normalizeString(headers[i]));
-  }
-  return keys;
-}
-
-// setRowsData fills in one row of data per object defined in the objects Array.
-// For every Column, it checks if data objects define a value for it.
-// Arguments:
-//   - sheet: the Sheet Object where the data will be written
-//   - objects: an Array of Objects, each of which contains data for a row
-//   - optHeadersRange: a Range of cells where the column headers are defined. This
-//     defaults to the entire first row in sheet.
-//   - optFirstDataRowIndex: index of the first row where data should be written. This
-//     defaults to the row immediately below the headers.
-function setRowsData(sheet, objects, optHeadersRange, optFirstDataRowIndex) {
-  
-  var headersRange = optHeadersRange || sheet.getRange(1, 1, 1, sheet.getMaxColumns());
-  var firstDataRowIndex = optFirstDataRowIndex || headersRange.getRowIndex() + 1;
-  var headers = normalizeStrings(headersRange.getValues()[0]);
-
-  var data = [];
-  for (var i = 0; i < objects.length; ++i) {
-    var values = []
-    for (j = 0; j < headers.length; ++j) {
-      var header = headers[j];
-      values.push(header.length > 0 && objects[i][header] ? objects[i][header] : "");
-    }
-    data.push(values);
-  }
-
-  var destinationRange = sheet.getRange(firstDataRowIndex, headersRange.getColumnIndex(), 
-                                        objects.length, headers.length);
-  destinationRange.setValues(data);
-}
-
-function populateProjectsSS() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var projectsSheet = ss.getSheetByName('ProjectsData') || ss.insertSheet('ProjectsData', ss.getSheets().length);
-  projectsSheet.clear();
-
-  var columnNames = ["Id", "Project Name", "Description", "Created On", "Updated On"];
-  var headersRange = projectsSheet.getRange(1, 1, 1, columnNames.length);
-
-  headersRange.setValues([columnNames]);
-  
-  var data = Redmine.getProjects();
-  
-  setRowsData(projectsSheet, data);
-}
-
-// Stub functions
-function getProject() {
-  var data = Redmine.getProject(203);
-}
-
-function getCostFor2011() {
-  var total_amount = costProjectByYear(189, '2011');
-  Logger.log("total_amount: " + total_amount);
+  return [total_planned, total_spent];
 }
