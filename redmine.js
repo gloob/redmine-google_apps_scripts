@@ -26,15 +26,17 @@ var API_ACCESS_KEY = 'YOUR_API_ACCESS_KEY_HERE!';
 // HTTP Class
 // This prototype is defined for HTTP Basic authentication and easy
 // management of HTTP Request
-var HTTP = {
+var HTTP = (function() {
 
-  default_method: "GET",
-  base_url: "",
-  authentication: false,
-  username: "",
-  password: "",
+  function HTTP() {
+    this.default_method: = "GET";
+    this.base_url = "";
+    this.authentication = false;
+    this.username = "";
+    this.password = "";
+  }
 
-  Request: function(url, method) {
+  HTTP.prototype.Request = function(url, method) {
 
     // Support for HTTP Basic Authentication.
     // if (this.authentication) {
@@ -44,7 +46,7 @@ var HTTP = {
       "Authorization" : credentials
     };
 
-    options = {
+    var options = {
       "headers" : headers,
       "method" : method
     };
@@ -52,34 +54,39 @@ var HTTP = {
     var content = UrlFetchApp.fetch(url, options);
 
     return content;
-  },
+  };
 
-  Get: function (url) {
+  HTTP.prototype.Get = function (url) {
     return this.Request(url, "GET");
-  },
+  };
 
-  Post: function (url) {
+  HTTP.prototype.Post = function (url) {
     return this.Request(url, "POST");
-  },
+  };
 
-  Put: function (url) {
+  HTTP.prototype.Put = function (url) {
     return this.Request(url, "PUT");
-  },
+  };
 
-  SetAuth: function (username, password) {
+  HTTP.prototype.SetAuth = function (username, password) {
     this.username = username;
     this.password = password;
     this.authentication = true;
-  }
+  };
 
-}
+  return HTTP;
+
+})();
 
 
 // Class Translator
-var Translator = {
+var Translator = (function() {
+
+  function Translator() {
+  }
 
   // XML to JS Object.
-  xmlToJS: function (element) {
+  Translator.prototype.xmlToJS = function (element) {
 
     //TODO: Refactor this to add an array when necessary, not always.
 
@@ -118,9 +125,9 @@ var Translator = {
     }
 
     return obj;
-  },
+  };
 
-  searchTag : function (data, tag) {
+  Translator.prototype.searchTag = function (data, tag) {
 
     var ret_value;
 
@@ -132,30 +139,37 @@ var Translator = {
     }
 
     return ret_value;
+  };
+
+  return Translator;
+
+})();
+
+
+var Redmine = (function() {
+
+  function Redmine(base_url, items_by_page) {
+    this.ITEMS_BY_PAGE = items_by_page || 100;
+    this.base_url = base_url || '';
+    this.http = new HTTP();
+    this.translator = new Translator();
   }
-};
 
-
-var Redmine = {
-
-  ITEMS_BY_PAGE: 100,
-  base_url: '',
-
-  getReports: function (project_id) {
+  Redmine.prototype.getReports = function (project_id) {
     return "";
-  },
+  };
 
-  getProjects: function () {
+  Redmine.prototype.getProjects = function () {
 
     Logger.log("Launching getProjects()");
 
-    HTTP.SetAuth(API_ACCESS_KEY);
+    this.http.SetAuth(API_ACCESS_KEY);
 
-    var xml_content = HTTP.Get(REDMINE_URL + '/projects.xml');
+    var xml_content = this.http.Get(REDMINE_URL + '/projects.xml');
     var xml = Xml.parse(xml_content.getContentText(), true);
 
     var root_element = xml.getElement();
-    var projects_data = Translator.xmlToJS(root_element);
+    var projects_data = this.translator.xmlToJS(root_element);
 
     var projects = projects_data.projects.childs;
 
@@ -187,19 +201,19 @@ var Redmine = {
     }
 
     return data;
-  },
+  };
 
-  getProject: function (id) {
+  Redmine.prototype.getProject = function (id) {
 
     Logger.log("Launching getProject()"+id);
 
-    HTTP.SetAuth(API_ACCESS_KEY);
+    this.http.SetAuth(API_ACCESS_KEY);
 
-    var xml_content = HTTP.Get(REDMINE_URL + '/projects/' + id + '.xml');
+    var xml_content = this.http.Get(REDMINE_URL + '/projects/' + id + '.xml');
     var xml = Xml.parse(xml_content.getContentText(), true);
 
     var root_element = xml.getElement();
-    var project_data = Translator.xmlToJS(root_element);
+    var project_data = this.translator.xmlToJS(root_element);
 
     var project = project_data.project.childs;
 
@@ -212,34 +226,34 @@ var Redmine = {
     Logger.log(project[5].custom_fields.childs[9].custom_field.text);
 
     return data;
-  },
+  };
 
-  getTimeEntries: function (project_id) {
+  Redmine.prototype.getTimeEntries = function (project_id) {
     Logger.log("Launching getTimeEntries("+project_id+")");
 
-    HTTP.SetAuth(API_ACCESS_KEY);
+    this.http.SetAuth(API_ACCESS_KEY);
 
-    var xml_content = HTTP.Get(REDMINE_URL + '/projects/' + project_id +
+    var xml_content = this.http.Get(REDMINE_URL + '/projects/' + project_id +
                                '/time_entries.xml');
 
     var xml = Xml.parse(xml_content.getContentText(), true);
 
     var time_entries_count = xml.time_entries.getAttribute('total_count').getValue();
 
-    var pages = (time_entries_count / Redmine.ITEMS_BY_PAGE) + 1;
+    var pages = (time_entries_count / this.ITEMS_BY_PAGE) + 1;
 
     var data = [];
 
     for (var i = 1; i <= pages; i++) {
 
-      xml_content = HTTP.Get(REDMINE_URL + '/projects/' + project_id +
-                             '/time_entries.xml?limit='+ Redmine.ITEMS_BY_PAGE +
+      xml_content = this.http.Get(REDMINE_URL + '/projects/' + project_id +
+                             '/time_entries.xml?limit='+ this.ITEMS_BY_PAGE +
                              '&page=' + i);
 
       xml = Xml.parse(xml_content.getContentText(), true);
 
       var root_element = xml.getElement();
-      var time_data = Translator.xmlToJS(root_element);
+      var time_data = this.translator.xmlToJS(root_element);
       var time_entries = time_data.time_entries.childs;
 
       if (!time_entries || time_entries.length == 0) {
@@ -252,34 +266,34 @@ var Redmine = {
     }
 
     return data;
-  },
+  };
 
-  getIssuesByTracker: function (project_id, tracker_id) {
+  Redmine.prototype.getIssuesByTracker = function (project_id, tracker_id) {
     Logger.log("Launching getIssuesByTracker("+project_id+","+tracker_id+")");
 
-    HTTP.SetAuth(API_ACCESS_KEY);
+    this.http.SetAuth(API_ACCESS_KEY);
 
-    var xml_content = HTTP.Get(REDMINE_URL + '/issues.xml?project_id=' + project_id +
+    var xml_content = this.http.Get(REDMINE_URL + '/issues.xml?project_id=' + project_id +
                                '&tracker_id='+ tracker_id);
 
     var xml = Xml.parse(xml_content.getContentText(), true);
 
     var issues_count = xml.issues.getAttribute('total_count').getValue();
 
-    var pages = (issues_count / Redmine.ITEMS_BY_PAGE) + 1;
+    var pages = (issues_count / this.ITEMS_BY_PAGE) + 1;
 
     var data = [];
 
     for (var i = 1; i <= pages; i++) {
 
-      xml_content = HTTP.Get(REDMINE_URL + '/issues.xml?project_id=' + project_id +
+      xml_content = this.http.Get(REDMINE_URL + '/issues.xml?project_id=' + project_id +
                              '&tracker_id='+ tracker_id +
-                             '&limit='+ Redmine.ITEMS_BY_PAGE + '&page=' + i);
+                             '&limit='+ this.ITEMS_BY_PAGE + '&page=' + i);
 
       xml = Xml.parse(xml_content.getContentText(), true);
 
       var root_element = xml.getElement();
-      var issue_data = Translator.xmlToJS(root_element);
+      var issue_data = this.translator.xmlToJS(root_element);
 
       var issues = issue_data.issues.childs;
       Logger.log(issues);
@@ -295,37 +309,40 @@ var Redmine = {
     }
 
     return data;
-  },
+  };
 
-  issueUpdate: function (issue_id, start_date, due_date) {
+  Redmine.prototype.issueUpdate = function (issue_id, start_date, due_date) {
     //TODO: Create Issue class for easy handling.
-    HTTP.SetAuth(API_ACCESS_KEY);
+    this.http.SetAuth(API_ACCESS_KEY);
 
     //TODO: Create Issue to send
-    var ret = HTTP.Put(REDMINE_URL + '/issues/' + issue_id + '.xml');
+    var ret = this.http.Put(REDMINE_URL + '/issues/' + issue_id + '.xml');
+  };
 
-  }
-};
+  return Redmine;
+
+})();
 
 // CMI related functions
 function costProjectByYear(project_id, year) {
 
   var cost_table = {};
   var total_amount = 0.0;
+  var redmine = new Redmine();
 
-  var data = Redmine.getTimeEntries(project_id);
+  var data = redmine.getTimeEntries(project_id);
 
   for (var i in data) {
 
-    var spent_on = Translator.searchTag(data[i], 'spent_on');
+    var spent_on = redmine.translator.searchTag(data[i], 'spent_on');
     var spent_on_text = spent_on.text;
 
     var te_year = spent_on_text.split('-')[0];
 
     if (te_year == year) {
 
-      var cost = Translator.searchTag(data[i], 'cost');
-      var role = Translator.searchTag(data[i], 'role');
+      var cost = redmine.translator.searchTag(data[i], 'cost');
+      var role = redmine.translator.searchTag(data[i], 'role');
       var cost_value = cost.text;
       var role_text = role.text;
 
@@ -344,19 +361,20 @@ function expensesProjectByYear(project_id, year) {
 
   var total_planned = 0.0;
   var total_spent = 0.0;
+  var redmine = new Redmine();
 
-  var data = Redmine.getIssuesByTracker(project_id, '27');
+  var data = redmine.getIssuesByTracker(project_id, '27');
 
   for (var i in data) {
 
-    var start_date = Translator.searchTag(data[i], 'start_date');
+    var start_date = redmine.translator.searchTag(data[i], 'start_date');
     var start_date_text = start_date.text;
 
     var te_year = start_date_text.split('-')[0];
 
     if (te_year == year) {
 
-      var custom_fields = Translator.searchTag(data[i], 'custom_fields');
+      var custom_fields = redmine.translator.searchTag(data[i], 'custom_fields');
 
       var initial = custom_fields.childs[0].custom_field.childs[0].value.text;
       var planned = custom_fields.childs[1].custom_field.childs[0].value.text;

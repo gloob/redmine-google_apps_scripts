@@ -124,7 +124,7 @@ function populateProjectsSS() {
 
   headersRange.setValues([columnNames]);
 
-  var data = Redmine.getProjects();
+  var data = (new Redmine()).getProjects();
 
   setRowsData(projectsSheet, data);
 }
