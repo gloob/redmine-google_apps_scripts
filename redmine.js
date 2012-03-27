@@ -17,7 +17,7 @@
  *
  */
 
-var REDMINE_URL = 'http://redmine.emergya.es';
+var REDMINE_URL = 'http://your.redmine.com';
 
 // TODO: this should be obtained from a configuration dialog.
 var API_ACCESS_KEY = 'YOUR_API_ACCESS_KEY_HERE!';
