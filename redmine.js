@@ -29,7 +29,7 @@ var API_ACCESS_KEY = 'YOUR_API_ACCESS_KEY_HERE!';
 var HTTP = (function() {
 
   function HTTP() {
-    this.default_method: = "GET";
+    this.default_method = "GET";
     this.base_url = "";
     this.authentication = false;
     this.username = "";
