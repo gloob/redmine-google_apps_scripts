@@ -178,44 +178,33 @@ var Redmine = (function() {
   };
 
   Redmine.prototype.getProjects = function () {
-
     Logger.log("Launching getProjects()");
 
     this.http.SetAuth(API_ACCESS_KEY);
-
-    var xml_content = this.http.Get(REDMINE_URL + '/projects.xml');
-    var xml = Xml.parse(xml_content.getContentText(), true);
-
-    var root_element = xml.getElement();
-    var projects_data = this.translator.xmlToJS(root_element);
-
-    var projects = projects_data.projects.childs;
-
-    if (!projects || projects.length == 0) {
-      return "Something went wrong";
-    }
+    
+    var url = REDMINE_URL + '/projects.xml';
+    
+    var pages = this.paginate(url);
 
     var data = [];
 
-    for (var i in projects) {
-      //Logger.log(projects[i].project.childs);
-      var length = projects[i].project.childs.length;
-      Logger.log(length);
-      var id = projects[i].project.childs[0].id.text;
-      var name = projects[i].project.childs[1].name.text;
-      var description = projects[i].project.childs[3].description.text;
-      var createdon = projects[i].project.childs[length - 2].created_on.text;
-      var updatedon = projects[i].project.childs[length - 1].updated_on.text;
+    for (var i = 1; i <= pages; i++) {
 
-      var obj = {};
+      var xml_content = this.http.Get(url + '?limit=' + this.ITEMS_BY_PAGE + '&page=' + i);
+      var xml = Xml.parse(xml_content.getContentText(), true);
+      
+      var root_element = xml.getElement();
+      var projects_data = this.translator.xmlToJS(root_element);
 
-      obj["id"] = id;
-      obj["projectName"] = name;
-      obj["description"] = description;
-      obj["createdOn"] = createdon;
-      obj["updatedOn"] = updatedon;
-      Logger.log(obj);
-      data.push(obj);
+      var projects = projects_data.projects.childs;
+
+      if (!projects || projects.length == 0) {
+        return "Something went wrong";
+      }
+
+      for (var j in projects) {
+        data.push(projects[j].project.childs);
+      }
     }
 
     return data;
@@ -247,7 +236,7 @@ var Redmine = (function() {
   };
 
   Redmine.prototype.getTimeEntries = function (project_id) {
-    Logger.log("Launching getTimeEntries("+project_id+")");
+    Logger.log("Launching getTimeEntries(" + project_id + ")");
 
     this.http.SetAuth(API_ACCESS_KEY);
     
@@ -259,9 +248,7 @@ var Redmine = (function() {
 
     for (var i = 1; i <= pages; i++) {
 
-      xml_content = this.http.Get(REDMINE_URL + '/projects/' + project_id +
-                             '/time_entries.xml?limit='+ this.ITEMS_BY_PAGE +
-                             '&page=' + i);
+      xml_content = this.http.Get(url + '?limit=' + this.ITEMS_BY_PAGE + '&page=' + i);
 
       xml = Xml.parse(xml_content.getContentText(), true);
 
@@ -285,40 +272,31 @@ var Redmine = (function() {
     Logger.log("Launching getIssuesByTracker("+project_id+","+tracker_id+")");
 
     this.http.SetAuth(API_ACCESS_KEY);
-
-    var xml_content = this.http.Get(REDMINE_URL + '/issues.xml?project_id=' + project_id +
-                               '&tracker_id='+ tracker_id);
-
-    var xml = Xml.parse(xml_content.getContentText(), true);
-
-    var issues_count = xml.issues.getAttribute('total_count').getValue();
-
-    var pages = (issues_count / this.ITEMS_BY_PAGE) + 1;
-
+    
+    var url = REDMINE_URL + '/issues.xml?project_id=' + project_id + '&tracker_id='+ tracker_id;
+        
+    var pages = this.paginate(url);
+    
     var data = [];
 
     for (var i = 1; i <= pages; i++) {
 
-      xml_content = this.http.Get(REDMINE_URL + '/issues.xml?project_id=' + project_id +
-                             '&tracker_id='+ tracker_id +
-                             '&limit='+ this.ITEMS_BY_PAGE + '&page=' + i);
+      xml_content = this.http.Get(url + '&limit='+ this.ITEMS_BY_PAGE + '&page=' + i);
 
       xml = Xml.parse(xml_content.getContentText(), true);
 
       var root_element = xml.getElement();
       var issue_data = this.translator.xmlToJS(root_element);
-
       var issues = issue_data.issues.childs;
-      Logger.log(issues);
 
       if (!issues || issues.length == 0) {
         return [];
       }
 
       for (var j in issues) {
-        Logger.log(issues[j]);
         data.push(issues[j].issue.childs);
       }
+      
     }
 
     return data;
