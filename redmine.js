@@ -149,10 +149,28 @@ var Translator = (function() {
 var Redmine = (function() {
 
   function Redmine(base_url, items_by_page) {
+    
     this.ITEMS_BY_PAGE = items_by_page || 100;
     this.base_url = base_url || '';
     this.http = new HTTP();
     this.translator = new Translator();
+    
+    // Privileged methods
+    this.paginate = function (url) {
+      
+      var response = this.http.Get(url);
+      var content = response.getContentText();
+      
+      var xml = Xml.parse(content, true);
+      var root = xml.getElement();
+      
+      var entries = root.getAttribute('total_count').getValue();
+      
+      var pages = (entries / this.ITEMS_BY_PAGE) + 1;
+      
+      return pages;
+    }
+
   }
 
   Redmine.prototype.getReports = function (project_id) {
@@ -232,15 +250,10 @@ var Redmine = (function() {
     Logger.log("Launching getTimeEntries("+project_id+")");
 
     this.http.SetAuth(API_ACCESS_KEY);
-
-    var xml_content = this.http.Get(REDMINE_URL + '/projects/' + project_id +
-                               '/time_entries.xml');
-
-    var xml = Xml.parse(xml_content.getContentText(), true);
-
-    var time_entries_count = xml.time_entries.getAttribute('total_count').getValue();
-
-    var pages = (time_entries_count / this.ITEMS_BY_PAGE) + 1;
+    
+    var url = REDMINE_URL + '/projects/' + project_id + '/time_entries.xml';
+    
+    var pages = this.paginate(url);
 
     var data = [];
 
