@@ -169,7 +169,7 @@ var Redmine = (function() {
       
       var entries = root.getAttribute('total_count').getValue();
       
-      var pages = (entries / this.ITEMS_BY_PAGE) + 1;
+      var pages = Math.floor((entries / this.ITEMS_BY_PAGE) + 1);
       
       return pages;
     }
