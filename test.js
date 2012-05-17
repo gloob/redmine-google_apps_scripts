@@ -19,16 +19,17 @@
 
 // Some useful constants
 var PROJECT_ID = 'your_project_id';
+PROJECT_ID = 'guadalinex-puntos-empleo-sae';
 var TRACKER_ID = 'your_tracker_id';
 
 // Redmine class tests
 
-function redmine_getReports() {
+function redmine_getIssues() {
   var redmine = new Redmine();
-  var reports = redmine.getReports(PROJECT_ID);
+  var issues = redmine.getIssues(PROJECT_ID);
   
-  Logger.log('Reports: ' + reports.length);
-  Logger.log(reports);
+  Logger.log('Issues: ' + issues.length);
+  Logger.log(issues);
 }
 
 function redmine_getProjects() {
