@@ -152,7 +152,10 @@ var Redmine = (function() {
     
     this.ITEMS_BY_PAGE = items_by_page || 100;
     this.base_url = base_url || '';
+    
     this.http = new HTTP();
+    this.http.SetAuth(API_ACCESS_KEY);
+    
     this.translator = new Translator();
     
     // Privileged methods
@@ -237,8 +240,6 @@ var Redmine = (function() {
 
   Redmine.prototype.getTimeEntries = function (project_id) {
     Logger.log("Launching getTimeEntries(" + project_id + ")");
-
-    this.http.SetAuth(API_ACCESS_KEY);
     
     var url = REDMINE_URL + '/projects/' + project_id + '/time_entries.xml';
     
@@ -270,8 +271,6 @@ var Redmine = (function() {
 
   Redmine.prototype.getIssuesByTracker = function (project_id, tracker_id) {
     Logger.log("Launching getIssuesByTracker("+project_id+","+tracker_id+")");
-
-    this.http.SetAuth(API_ACCESS_KEY);
     
     var url = REDMINE_URL + '/issues.xml?project_id=' + project_id + '&tracker_id='+ tracker_id;
         
