@@ -172,68 +172,82 @@ var Redmine = (function() {
       var pages = Math.floor((entries / this.ITEMS_BY_PAGE) + 1);
       
       return pages;
-    }
+    };
+    
+    this.getDataElement = function (url, root_tag) {
+      // TODO: Avoid the use of root_tag and element_tag we can infer it.
+      
+      var data = [];
+      
+      var xml_content = this.http.Get(url);
+      var xml = Xml.parse(xml_content.getContentText(), true);
+      
+      var root_element = xml.getElement();
+      var elements_data = this.translator.xmlToJS(root_element);
 
+      var elements = elements_data[root_tag].childs;
+      
+      return elements;
+    };
+    
+    this.getData = function (base_url, root_tag, element_tag) {
+      
+      var data = [];
+      
+      var pages = this.paginate(base_url);
+
+      for (var i = 1; i <= pages; i++) {
+        
+        if (base_url.indexOf("?") > 0)
+          var url = base_url + '&limit=' + this.ITEMS_BY_PAGE + '&page=' + i;
+        else
+          var url = base_url + '?limit=' + this.ITEMS_BY_PAGE + '&page=' + i;
+        
+        var xml_content = this.http.Get(url);
+        var xml = Xml.parse(xml_content.getContentText(), true);
+      
+        var root_element = xml.getElement();
+        var elements_data = this.translator.xmlToJS(root_element);
+
+        var elements = elements_data[root_tag].childs;
+
+        if (!elements || elements.length == 0) {
+          return "Something went wrong";
+        }
+
+        for (var j in elements) {
+          data.push(elements[j][element_tag].childs);
+        }
+      }
+      
+      return data;
+    };
+      
   }
 
-  Redmine.prototype.getReports = function (project_id) {
-    return "";
+  Redmine.prototype.getIssues = function (project_id) {
+    Logger.log("Launching getIssues(" + project_id + ")");
+    
+    var url = REDMINE_URL + '/issues.xml?project_id=' + project_id;
+    var data = this.getData(url, 'issues', 'issue');
+    
+    return data;
   };
 
   Redmine.prototype.getProjects = function () {
     Logger.log("Launching getProjects()");
-
-    this.http.SetAuth(API_ACCESS_KEY);
     
     var url = REDMINE_URL + '/projects.xml';
+    var data = this.getData(url, 'projects', 'project');
     
-    var pages = this.paginate(url);
-
-    var data = [];
-
-    for (var i = 1; i <= pages; i++) {
-
-      var xml_content = this.http.Get(url + '?limit=' + this.ITEMS_BY_PAGE + '&page=' + i);
-      var xml = Xml.parse(xml_content.getContentText(), true);
-      
-      var root_element = xml.getElement();
-      var projects_data = this.translator.xmlToJS(root_element);
-
-      var projects = projects_data.projects.childs;
-
-      if (!projects || projects.length == 0) {
-        return "Something went wrong";
-      }
-
-      for (var j in projects) {
-        data.push(projects[j].project.childs);
-      }
-    }
-
     return data;
   };
 
-  Redmine.prototype.getProject = function (id) {
-
-    Logger.log("Launching getProject()"+id);
-
-    this.http.SetAuth(API_ACCESS_KEY);
-
-    var xml_content = this.http.Get(REDMINE_URL + '/projects/' + id + '.xml');
-    var xml = Xml.parse(xml_content.getContentText(), true);
-
-    var root_element = xml.getElement();
-    var project_data = this.translator.xmlToJS(root_element);
-
-    var project = project_data.project.childs;
-
-    if (!project || project.length == 0) {
-      return "Something went wrong";
-    }
-
-    var data = [];
-
-    Logger.log(project[5].custom_fields.childs[9].custom_field.text);
+  Redmine.prototype.getProject = function (project_id) {
+    Logger.log("Launching getProject(" + project_id + ")");
+    
+    var url = REDMINE_URL + '/projects/' + project_id + '.xml';
+    var data = this.getDataElement(url, 'project');
 
     return data;
   };
@@ -242,29 +256,7 @@ var Redmine = (function() {
     Logger.log("Launching getTimeEntries(" + project_id + ")");
     
     var url = REDMINE_URL + '/projects/' + project_id + '/time_entries.xml';
-    
-    var pages = this.paginate(url);
-
-    var data = [];
-
-    for (var i = 1; i <= pages; i++) {
-
-      xml_content = this.http.Get(url + '?limit=' + this.ITEMS_BY_PAGE + '&page=' + i);
-
-      xml = Xml.parse(xml_content.getContentText(), true);
-
-      var root_element = xml.getElement();
-      var time_data = this.translator.xmlToJS(root_element);
-      var time_entries = time_data.time_entries.childs;
-
-      if (!time_entries || time_entries.length == 0) {
-        return "Something went wrong";
-      }
-
-      for (var j in time_entries) {
-        data.push(time_entries[j].time_entry.childs);
-      }
-    }
+    var data = this.getData(url, 'time_entries', 'time_entry');
 
     return data;
   };
@@ -273,31 +265,8 @@ var Redmine = (function() {
     Logger.log("Launching getIssuesByTracker("+project_id+","+tracker_id+")");
     
     var url = REDMINE_URL + '/issues.xml?project_id=' + project_id + '&tracker_id='+ tracker_id;
-        
-    var pages = this.paginate(url);
+    var data = this.getData(url, 'issues', 'issue');
     
-    var data = [];
-
-    for (var i = 1; i <= pages; i++) {
-
-      xml_content = this.http.Get(url + '&limit='+ this.ITEMS_BY_PAGE + '&page=' + i);
-
-      xml = Xml.parse(xml_content.getContentText(), true);
-
-      var root_element = xml.getElement();
-      var issue_data = this.translator.xmlToJS(root_element);
-      var issues = issue_data.issues.childs;
-
-      if (!issues || issues.length == 0) {
-        return [];
-      }
-
-      for (var j in issues) {
-        data.push(issues[j].issue.childs);
-      }
-      
-    }
-
     return data;
   };
 
