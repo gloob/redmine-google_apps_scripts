@@ -19,7 +19,6 @@
 
 // Some useful constants
 var PROJECT_ID = 'your_project_id';
-PROJECT_ID = 'guadalinex-puntos-empleo-sae';
 var TRACKER_ID = 'your_tracker_id';
 
 // Redmine class tests
