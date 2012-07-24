@@ -211,7 +211,7 @@ var Redmine = (function() {
 
         var elements = elements_data[root_tag].childs;
 
-        if (!elements || elements.length == 0) {
+        if (!elements || elements.length < 0) {
           return "Something went wrong";
         }
 
