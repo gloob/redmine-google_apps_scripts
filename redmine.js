@@ -78,7 +78,23 @@ var HTTP = (function() {
 
 })();
 
-
+var Cache = (function() {
+  
+  function Cache() {
+    this.store = {};
+  }
+  
+  Cache.prototype.set = function (key, value) {
+    this.store[key] = value;
+  }
+  
+  Cache.prototype.get = function (key) {
+    return this.store[key] || undefined;
+  }
+  
+  return Cache;
+})();
+             
 // Class Translator
 var Translator = (function() {
 
