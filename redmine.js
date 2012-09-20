@@ -174,6 +174,8 @@ var Redmine = (function() {
     
     this.translator = new Translator();
     
+    this.cache = new Cache();
+    
     // Privileged methods
     this.paginate = function (url) {
       
@@ -193,50 +195,68 @@ var Redmine = (function() {
     this.getDataElement = function (url, root_tag) {
       // TODO: Avoid the use of root_tag and element_tag we can infer it.
       
-      var data = [];
+      if (this.cache.get(url)) {
       
-      var xml_content = this.http.Get(url);
-      var xml = Xml.parse(xml_content.getContentText(), true);
+        return this.cache.get(url);
       
-      var root_element = xml.getElement();
-      var elements_data = this.translator.xmlToJS(root_element);
-
-      var elements = elements_data[root_tag].childs;
-      
-      return elements;
+      } else {
+        
+        var data = [];
+        
+        var xml_content = this.http.Get(url);
+        var xml = Xml.parse(xml_content.getContentText(), true);
+        
+        var root_element = xml.getElement();
+        var elements_data = this.translator.xmlToJS(root_element);
+        
+        var elements = elements_data[root_tag].childs;
+        
+        this.cache.set(url, elements);
+        
+        return elements;
+      }
     };
     
     this.getData = function (base_url, root_tag, element_tag) {
       
-      var data = [];
+      if (this.cache.get(base_url)) {
+
+        return this.cache.get(base_url);
+
+      } else {
       
-      var pages = this.paginate(base_url);
-
-      for (var i = 1; i <= pages; i++) {
+        var data = [];
         
-        if (base_url.indexOf("?") > 0)
-          var url = base_url + '&limit=' + this.ITEMS_BY_PAGE + '&page=' + i;
-        else
-          var url = base_url + '?limit=' + this.ITEMS_BY_PAGE + '&page=' + i;
+        var pages = this.paginate(base_url);
         
-        var xml_content = this.http.Get(url);
-        var xml = Xml.parse(xml_content.getContentText(), true);
-      
-        var root_element = xml.getElement();
-        var elements_data = this.translator.xmlToJS(root_element);
-
-        var elements = elements_data[root_tag].childs;
-
-        if (!elements || elements.length < 0) {
-          return "Something went wrong";
+        for (var i = 1; i <= pages; i++) {
+          
+          if (base_url.indexOf("?") > 0)
+            var url = base_url + '&limit=' + this.ITEMS_BY_PAGE + '&page=' + i;
+          else
+            var url = base_url + '?limit=' + this.ITEMS_BY_PAGE + '&page=' + i;
+          
+          var xml_content = this.http.Get(url);
+          var xml = Xml.parse(xml_content.getContentText(), true);
+          
+          var root_element = xml.getElement();
+          var elements_data = this.translator.xmlToJS(root_element);
+          
+          var elements = elements_data[root_tag].childs;
+          
+          if (!elements || elements.length == 0) {
+            return "Something went wrong";
+          }
+          
+          for (var j in elements) {
+            data.push(elements[j][element_tag].childs);
+          }
         }
-
-        for (var j in elements) {
-          data.push(elements[j][element_tag].childs);
-        }
+        
+        this.cache.set(base_url, data);
+        
+        return data;
       }
-      
-      return data;
     };
       
   }
