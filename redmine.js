@@ -264,7 +264,7 @@ var Redmine = (function() {
   Redmine.prototype.getIssues = function (project_id) {
     Logger.log("Launching getIssues(" + project_id + ")");
     
-    var url = REDMINE_URL + '/issues.xml?project_id=' + project_id;
+    var url = REDMINE_URL + '/issues.xml?project_id=' + project_id + '&status_id=*';
     var data = this.getData(url, 'issues', 'issue');
     
     return data;
@@ -300,7 +300,7 @@ var Redmine = (function() {
   Redmine.prototype.getIssuesByTracker = function (project_id, tracker_id) {
     Logger.log("Launching getIssuesByTracker("+project_id+","+tracker_id+")");
     
-    var url = REDMINE_URL + '/issues.xml?project_id=' + project_id + '&tracker_id='+ tracker_id;
+    var url = REDMINE_URL + '/issues.xml?project_id=' + project_id + '&tracker_id='+ tracker_id + '&status_id=*';
     var data = this.getData(url, 'issues', 'issue');
     
     return data;
