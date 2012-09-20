@@ -296,6 +296,30 @@ var Redmine = (function() {
 
     return data;
   };
+  
+  Redmine.prototype.getTimeEntriesByIssue = function (issue_id, project_id) {
+    Logger.log("Launching getTimeEntriesByIssue(" + issue_id + ")");
+    
+    /* By any reason this is returning bad values */
+    /*
+    var url = REDMINE_URL + '/issues/' + issue_id + '/time_entries.xml';
+    var data = this.getData(url, 'time_entries', 'time_entry');
+
+    return data;
+    */
+    
+    var data = [];
+    
+    var time_entries = this.getTimeEntries(project_id);
+    
+    for (var i = 0; i < time_entries.length; i++) {
+      var te_issue_id = this.translator.searchTag(time_entries[i], 'issue');
+      if (te_issue_id.attributes.id == issue_id)
+        data.push(time_entries[i]);
+    }
+    
+    return data;
+  };
 
   Redmine.prototype.getIssuesByTracker = function (project_id, tracker_id) {
     Logger.log("Launching getIssuesByTracker("+project_id+","+tracker_id+")");
