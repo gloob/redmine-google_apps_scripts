@@ -48,7 +48,8 @@ var HTTP = (function() {
 
     var options = {
       "headers" : headers,
-      "method" : method
+      "method" : method,
+      "validateHttpsCertificates" : false,
     };
 
     var content = UrlFetchApp.fetch(url, options);
