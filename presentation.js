@@ -105,14 +105,10 @@ function setRowsData(sheet, objects, optHeadersRange, optFirstDataRowIndex) {
   var headers = normalizeStrings(headersRange.getValues()[0], true);
 
   var data = [];
-  //Iterate over projects
   for (var i = 0; i < objects.length; ++i) {
     var values = [];
-    //Current project
     var project = objects[i];
-    //Iterate over current project elements
     for (j = 0; j < project.length; ++j) {
-      //Iterate over needed fields
       for(k = 0; k < headers.length; ++k) {
         var header = headers[k];
         //We only push the value if the current project element is the current needed field
