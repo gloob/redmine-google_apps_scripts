@@ -39,15 +39,16 @@ function isDigit(char) {
 }
 
 // Normalizes a string, by removing all alphanumeric characters and using mixed case
-// to separate words. The output will always start with a lower case letter.
+// to separate words or underscores. The output will always start with a lower case letter.
 // This function is designed to produce JavaScript object property names.
 // Arguments:
 //   - header: string to normalize
+//   - underscore: boolean to choose between using mixed case to separate words or underscores
 // Examples:
 //   "First Name" -> "firstName"
 //   "Market Cap (millions) -> "marketCapMillions
 //   "1 number at the beginning is ignored" -> "numberAtTheBeginningIsIgnored"
-function normalizeString(header) {
+function normalizeString(header, underscore) {
   var key = "";
   var upperCase = false;
   for (var i = 0; i < header.length; ++i) {
@@ -64,7 +65,10 @@ function normalizeString(header) {
     }
     if (upperCase) {
       upperCase = false;
-      key += letter.toUpperCase();
+      if(underscore)
+        key +="_"+letter.toLowerCase();
+      else
+        key += letter.toUpperCase();
     } else {
       key += letter.toLowerCase();
     }
@@ -76,10 +80,11 @@ function normalizeString(header) {
 // Empty Strings are returned for all Strings that could not be successfully normalized.
 // Arguments:
 //   - headers: Array of Strings to normalize
-function normalizeStrings(headers) {
+//   - underscore: boolean to choose between using mixed case to separate words or underscores
+function normalizeStrings(headers, underscore) {
   var keys = [];
   for (var i = 0; i < headers.length; ++i) {
-    keys.push(normalizeString(headers[i]));
+    keys.push(normalizeString(headers[i], underscore));
   }
   return keys;
 }
@@ -97,14 +102,24 @@ function setRowsData(sheet, objects, optHeadersRange, optFirstDataRowIndex) {
 
   var headersRange = optHeadersRange || sheet.getRange(1, 1, 1, sheet.getMaxColumns());
   var firstDataRowIndex = optFirstDataRowIndex || headersRange.getRowIndex() + 1;
-  var headers = normalizeStrings(headersRange.getValues()[0]);
+  var headers = normalizeStrings(headersRange.getValues()[0], true);
 
   var data = [];
+  //Iterate over projects
   for (var i = 0; i < objects.length; ++i) {
-    var values = []
-    for (j = 0; j < headers.length; ++j) {
-      var header = headers[j];
-      values.push(header.length > 0 && objects[i][header] ? objects[i][header] : "");
+    var values = [];
+    //Current project
+    var project = objects[i];
+    //Iterate over current project elements
+    for (j = 0; j < project.length; ++j) {
+      //Iterate over needed fields
+      for(k = 0; k < headers.length; ++k) {
+        var header = headers[k];
+        //We only push the value if the current project element is the current needed field
+        if(project[j][header] != undefined){
+          values.push(header.length > 0 && project[j][header] ? project[j][header].text : "");
+        }
+      }
     }
     data.push(values);
   }
